@@ -14,7 +14,7 @@ __pycache__
 .coveragerc
 
 # Environment
-# .env
+.env
 .venv
 env/
 venv/
