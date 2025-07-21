@@ -29,7 +29,8 @@ class ModelManager:
 
     def _determine_device(self) -> str:
         """Determine device based on settings."""
-        return "cuda" if settings.use_gpu else "cpu"
+        return settings.device_type or "cpu"
+        # return "cuda" if settings.use_gpu else "cpu"
 
     async def initialize(self) -> None:
         """Initialize Kokoro V1 backend."""
