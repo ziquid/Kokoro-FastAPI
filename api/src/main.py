@@ -3,13 +3,13 @@ FastAPI OpenAI Compatible API
 """
 
 import os
+import secrets
 import sys
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 import torch
 import uvicorn
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from loguru import logger
@@ -46,19 +46,16 @@ setup_logger()
 
 security = HTTPBasic()
 
-def get_http_credentials(credentials: HTTPBasicCredentials = Depends(security)):
-    """Conditionally verify HTTP Basic Auth credentials"""
-    username = os.getenv("HTTP_USERNAME")
-    password = os.getenv("HTTP_PASSWORD")
+def get_http_basic_auth_creds(credentials: HTTPBasicCredentials = Depends(security)):
+    """Verify HTTP Basic Auth credentials"""
+    username = settings.http_username
+    password = settings.http_password
+    correct_username = secrets.compare_digest(credentials.username, username)
+    correct_password = secrets.compare_digest(credentials.password, password)
 
-    # Skip authentication if credentials not configured
-    if not username or not password:
-        return
-
-    # Perform authentication check if credentials are configured
-    if (credentials.username != username or credentials.password != password):
+    if not (correct_username and correct_password):
         raise HTTPException(
-            status_code=401,
+            status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Basic"},
         )
@@ -100,9 +97,9 @@ async def lifespan(app: FastAPI):
     ╔═╗┌─┐┌─┐┌┬┐
     ╠╣ ├─┤└─┐ │ 
     ╚  ┴ ┴└─┘ ┴
-    ╦╔═┌─┐┬┌─┌─┐
-    ╠╩╗│ │├┴┐│ │
-    ╩ ╩└─┘┴ ┴└─┘
+    ╦╔═┌─┐┬┌─┌─┐┬┐ ┌─┐
+    ╠╩╗│ │├┴┐│ │├┴┐│ │
+    ╩ ╩└─┘┴ ┴└─┘┴ ┴└─┘
 
 {boundary}
                 """
@@ -150,11 +147,13 @@ if settings.cors_enabled:
     )
 
 # Include routers
-app.include_router(openai_router, prefix="/v1", dependencies=[Depends(get_http_credentials)])
-app.include_router(dev_router, dependencies=[Depends(get_http_credentials)])  # Development endpoints
-app.include_router(debug_router, dependencies=[Depends(get_http_credentials)])  # Debug endpoints
+router_dependencies = [Depends(get_http_basic_auth_creds)] if (settings.http_auth_type and settings.http_auth_type.lower() == "basic") else []
+
+app.include_router(openai_router, prefix="/v1", dependencies=router_dependencies)
+app.include_router(dev_router, dependencies=router_dependencies)  # Development endpoints
+app.include_router(debug_router, dependencies=router_dependencies)  # Debug endpoints
 if settings.enable_web_player:
-    app.include_router(web_router, prefix="/web", dependencies=[Depends(get_http_credentials)])  # Web player static files
+    app.include_router(web_router, prefix="/web", dependencies=router_dependencies)  # Web player static files
 
 
 # Health check endpoint
