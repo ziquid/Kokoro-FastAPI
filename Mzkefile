@@ -12,6 +12,7 @@ IS_DRUPAL :=
 ifneq (,$(wildcard ./.env))
 	include .env
 	export
+	DOCKER_RUN_ENV_FILE_SUPPORT := --env-file .env
 endif
 
 HOST_OS := $(shell uname)
@@ -49,7 +50,7 @@ $(MAKECMDGOALS)_ARGS := $(ARGS)
 ifdef IS_LINUX
 all run start up: ddr ## (Linux) Run the docker containers, if already stopped.  Don't restart if running.
 	docker ps | grep -q -s $(APP) || \
-	docker run -p 8880:8880 -d --name $(APP) $(HTTP_AUTH) \
+	docker run -p 8880:8880 -d --name $(APP) $(DOCKER_RUN_ENV_FILE_SUPPORT) \
 	$($@_ARGS) $(GPU_IMAGE):latest
 else
 all run start up: ## (Mac) Run as a local service.  Will fail if already running.
