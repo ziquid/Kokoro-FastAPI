@@ -14,21 +14,17 @@ ifneq (,$(wildcard ./.env))
 	export
 endif
 
-ifdef HTTP_USERNAME
-	HTTP_AUTH := -e HTTP_USERNAME=$(HTTP_USERNAME) -e HTTP_PASSWORD=$(HTTP_PASSWORD)
-else
-	HTTP_AUTH :=
-endif
-
 HOST_OS := $(shell uname)
 # $(info HOST_OS is $(HOST_OS))
 
 ifeq ($(HOST_OS),Darwin)
 DOCKER_DAEMON := com.[d]ocker.backend
+IS_MAC := Y
 endif
 
 ifeq ($(HOST_OS),Linux)
 DOCKER_DAEMON := [d]ockerd
+IS_LINUX := Y
 endif
 
 DOCKER_RUNNING := $(shell ps ax | grep -qs $(DOCKER_DAEMON) && echo Y || echo N)
@@ -50,13 +46,13 @@ $(MAKECMDGOALS)_ARGS := $(ARGS)
 # $(info MAKECMDGOALS_ARGS is $(MAKECMDGOALS)_ARGS is $($(MAKECMDGOALS)_ARGS))
 
 .PHONY: all run start up
-ifeq ($(HOST_OS),Linux)
-all run start up: ddr ## Run the docker containers, if already stopped.  Don't restart if running.
+ifdef IS_LINUX
+all run start up: ddr ## (Linux) Run the docker containers, if already stopped.  Don't restart if running.
 	docker ps | grep -q -s $(APP) || \
 	docker run -p 8880:8880 -d --name $(APP) $(HTTP_AUTH) \
-	$(GPU_IMAGE):latest $($@_ARGS)
+	$($@_ARGS) $(GPU_IMAGE):latest
 else
-all run start up: ## Run as a local service.  Will fail if already running.
+all run start up: ## (Mac) Run as a local service.  Will fail if already running.
 	. .venv/bin/activate
 	./start-gpu_mac.sh
 endif
