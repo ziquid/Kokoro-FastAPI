@@ -1,7 +1,11 @@
 #!/usr/bin/env mzke -f
 
 APP := kokoro-fastapi
-IMAGE := ghcr.io/ziquid/kokoro-fastapi-basicauth-cpu
+IMAGE := ghcr.io/ziquid/kokoro-fastapi-basicauth
+CPU_IMAGE := $(IMAGE)-cpu
+GPU_IMAGE := $(IMAGE)-gpu
+CPU_DOCKERFILE := docker/cpu/Dockerfile
+GPU_DOCKERFILE := docker/gpu/Dockerfile
 IS_DRUPAL :=
 
 # Makefile content
@@ -53,10 +57,25 @@ all run start up: ddr ## Run the docker containers, if already stopped.  Don't r
 	$(IMAGE):latest $($@_ARGS)
 
 ifdef IMAGE
-.PHONY: bpa build
-bpa build: Dockerfile ddr ## Build and Push All custom docker image(s) built by this app
+.PHONY: ba
+ba: $(CPU_DOCKERFILE) $(GPU_DOCKERFILE) ddr ## Build All custom docker image(s) built by this app
 	docker buildx use mybuilder
-	docker buildx build --platform linux/amd64,linux/arm64 --push -t $(IMAGE):latest .
+	docker buildx build --platform linux/amd64,linux/arm64 -f $(CPU_DOCKERFILE) -t $(CPU_IMAGE):latest .
+	docker buildx build -f $(GPU_DOCKERFILE) -t $(GPU_IMAGE):latest .
+
+.PHONY: bpa
+bpa: $(CPU_DOCKERFILE) $(GPU_DOCKERFILE) ddr ## Build and Push All custom docker image(s) built by this app
+	docker buildx use mybuilder
+	docker buildx build --platform linux/amd64,linux/arm64 -f $(CPU_DOCKERFILE) -t $(CPU_IMAGE):latest --push .
+	docker buildx build -f $(GPU_DOCKERFILE) -t $(GPU_IMAGE):latest --push .
+
+.PHONY: build
+build: $(CPU_DOCKERFILE) ddr ## Build custom docker image(s) built by this app
+	docker buildx use mybuilder
+	docker buildx build -f $(CPU_DOCKERFILE) -t $(CPU_IMAGE):latest --load .
+ifeq ($(HOST_OS),Linux)
+	docker buildx build -f $(GPU_DOCKERFILE) -t $(GPU_IMAGE):latest --load .
+endif
 endif
 
 ifdef IS_DRUPAL

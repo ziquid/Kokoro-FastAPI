@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM nvidia/cuda:12.8.1-cudnn-base-ubuntu24.04
+FROM --platform=$BUILDOS/amd64 nvidia/cuda:12.8.1-base-ubuntu24.04
 # Set non-interactive frontend
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y \
     curl \
     ffmpeg \
     g++ \
+    cmake \
  && apt-get clean && rm -rf /var/lib/apt/lists/* \
  && mkdir -p /usr/share/espeak-ng-data \
  && ln -s /usr/lib/*/espeak-ng-data/* /usr/share/espeak-ng-data/
@@ -37,10 +38,10 @@ ENV PHONEMIZER_ESPEAK_PATH=/usr/bin \
     PHONEMIZER_ESPEAK_DATA=/usr/share/espeak-ng-data \
     ESPEAK_DATA_PATH=/usr/share/espeak-ng-data
 
-# Install dependencies with GPU extras (using cache mounts)
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv venv --python 3.10 && \
-    uv sync --extra gpu
+# Install dependencies with GPU extras
+RUN uv venv --python 3.10 && \
+    . .venv/bin/activate && \
+    uv sync --extra gpu --no-cache
 
 # Copy project files including models
 COPY --chown=appuser:appuser api ./api
