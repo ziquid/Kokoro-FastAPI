@@ -50,11 +50,16 @@ $(MAKECMDGOALS)_ARGS := $(ARGS)
 # $(info MAKECMDGOALS_ARGS is $(MAKECMDGOALS)_ARGS is $($(MAKECMDGOALS)_ARGS))
 
 .PHONY: all run start up
+ifeq ($(HOST_OS),Linux)
 all run start up: ddr ## Run the docker containers, if already stopped.  Don't restart if running.
-# 	docker compose up -d $($@_ARGS)
 	docker ps | grep -q -s $(APP) || \
 	docker run -p 8880:8880 -d --name $(APP) $(HTTP_AUTH) \
-	$(IMAGE):latest $($@_ARGS)
+	$(GPU_IMAGE):latest $($@_ARGS)
+else
+all run start up: ## Run as a local service.  Will fail if already running.
+	. .venv/bin/activate
+	./start-gpu_mac.sh
+endif
 
 ifdef IMAGE
 .PHONY: ba
